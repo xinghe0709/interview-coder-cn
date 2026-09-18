@@ -1,0 +1,115 @@
+import { BrowserWindow, ipcMain, screen, type Rectangle } from 'electron'
+import { noteToolbarResize } from './toolbar-window'
+import { state } from './state'
+
+export type ResizeDirection = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw'
+
+type ResizeState = {
+  window: BrowserWindow
+  direction: ResizeDirection
+  startX: number
+  startY: number
+  bounds: Rectangle
+  lastX: number
+  lastY: number
+}
+
+const MIN_WIDTH = 200
+const MIN_HEIGHT = 36
+/** Compact mode keeps just enough surface for a small, readable answer preview */
+const COMPACT_MIN_WIDTH = 120
+const COMPACT_MIN_HEIGHT = 48
+/** Cursor sampling interval while dragging, roughly one frame */
+const POLL_INTERVAL = 16
+/** Only the renderer can end a drag, so never follow the cursor indefinitely */
+const MAX_DRAG_DURATION = 30_000
+
+let resizeState: ResizeState | null = null
+let pollTimer: ReturnType<typeof setInterval> | null = null
+let safetyTimer: ReturnType<typeof setTimeout> | null = null
+
+/**
+ * The cursor is sampled here instead of being sent from the renderer: the overlay
+ * toolbar is a non-activating panel on macOS and never receives the pointer moves
+ * of a drag, so renderer-side tracking silently does nothing there. A pointerdown
+ * and a pointerup are all the renderer has to deliver.
+ */
+ipcMain.on('window-resize-start', (event, direction: ResizeDirection) => {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  if (!window || window.isDestroyed()) return
+
+  const { x, y } = screen.getCursorScreenPoint()
+  resizeState = {
+    window,
+    direction,
+    startX: x,
+    startY: y,
+    bounds: window.getBounds(),
+    lastX: x,
+    lastY: y
+  }
+
+  stopTimers()
+  pollTimer = setInterval(trackCursor, POLL_INTERVAL)
+  safetyTimer = setTimeout(stopResize, MAX_DRAG_DURATION)
+})
+
+ipcMain.on('window-resize-stop', (event) => {
+  if (resizeState?.window.webContents === event.sender) stopResize()
+})
+
+function trackCursor(): void {
+  if (!resizeState || resizeState.window.isDestroyed()) {
+    stopResize()
+    return
+  }
+
+  const { x, y } = screen.getCursorScreenPoint()
+  if (x === resizeState.lastX && y === resizeState.lastY) return
+  resizeState.lastX = x
+  resizeState.lastY = y
+
+  // Every frame is derived from the bounds snapshotted at drag start, so the
+  // rounding of a single getBounds() cannot accumulate. The toolbar is told the
+  // size it ends up with, because its own sync must never read it back.
+  const bounds = resizeBounds(resizeState, x, y)
+  resizeState.window.setBounds(bounds)
+  noteToolbarResize(resizeState.window, bounds.width, bounds.height)
+}
+
+function stopResize(): void {
+  stopTimers()
+  resizeState = null
+}
+
+function stopTimers(): void {
+  if (pollTimer) clearInterval(pollTimer)
+  if (safetyTimer) clearTimeout(safetyTimer)
+  pollTimer = null
+  safetyTimer = null
+}
+
+function resizeBounds(resize: ResizeState, x: number, y: number): Rectangle {
+  const { bounds, direction, startX, startY } = resize
+  const dx = x - startX
+  const dy = y - startY
+  let { x: left, y: top, width, height } = bounds
+  const isCompactMainWindow = resize.window === global.mainWindow && state.compactMode
+  const effectiveMinWidth = isCompactMainWindow ? COMPACT_MIN_WIDTH : MIN_WIDTH
+  const effectiveMinHeight = isCompactMainWindow ? COMPACT_MIN_HEIGHT : MIN_HEIGHT
+
+  if (direction.includes('e')) width = Math.max(effectiveMinWidth, width + dx)
+  if (direction.includes('s')) height = Math.max(effectiveMinHeight, height + dy)
+  if (direction.includes('w')) {
+    const nextWidth = Math.max(effectiveMinWidth, width - dx)
+    left += width - nextWidth
+    width = nextWidth
+  }
+  if (direction.includes('n')) {
+    const nextHeight = Math.max(effectiveMinHeight, height - dy)
+    top += height - nextHeight
+    height = nextHeight
+  }
+
+  return { x: left, y: top, width, height }
+}

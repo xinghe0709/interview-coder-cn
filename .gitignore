@@ -1,0 +1,10 @@
+node_modules
+out
+dist
+.DS_Store
+.eslintcache
+*.log*
+.env*
+
+# Independent local project; never include it in this repository.
+/gaze-correction-cam/
