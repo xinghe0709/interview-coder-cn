@@ -16,6 +16,16 @@
 - **隐身兼容性自检**：检查当前系统上的内容保护、窗口透明度和关键运行条件，并提示仍需手工验证的项目。
 - **跨平台构建**：支持 macOS 和 Windows；Linux 暂不支持。
 
+### 界面预览
+
+#### 首页
+
+![Interview Coder CN 首页](./docs/images/home.png)
+
+#### 设置页
+
+![Interview Coder CN 设置页](./docs/images/settings.png)
+
 ## 快速开始
 
 ### 环境要求
