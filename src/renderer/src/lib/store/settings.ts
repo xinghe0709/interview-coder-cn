@@ -4,6 +4,11 @@ import codingPrompt from './prompts/coding.md?raw'
 import englishExamPrompt from './prompts/english-exam.md?raw'
 import aptitudeTestPrompt from './prompts/aptitude-test.md?raw'
 import generalQaPrompt from './prompts/general-qa.md?raw'
+import {
+  getModelSettingsKey,
+  getProviderKey,
+  type ReasoningEffort
+} from '../../../../shared/model-settings'
 
 export interface PromptScene {
   id: string
@@ -72,6 +77,8 @@ interface Settings {
   apiKey: string
   model: string
   customModels: string[]
+  fetchedModels: Record<string, string[]>
+  reasoningEfforts: Record<string, ReasoningEffort>
   customPrompt: string
 
   scenes: PromptScene[]
@@ -104,6 +111,8 @@ interface Settings {
 
 interface SettingsStore extends Settings {
   updateSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void
+  setFetchedModels: (baseURL: string, models: string[]) => void
+  setReasoningEffort: (effort: ReasoningEffort | '') => void
   /** Step the window background opacity within [OPACITY_MIN, OPACITY_MAX] */
   adjustOpacity: (delta: number) => void
   syncSettings: (settings: Partial<Settings>) => void
@@ -118,6 +127,8 @@ const defaultSettings: Settings = {
   apiKey: '',
   model: '',
   customModels: [],
+  fetchedModels: {},
+  reasoningEfforts: {},
   customPrompt: PRESET_SCENE_PROMPTS[CODING_SCENE_ID],
   scenes: createPresetScenes(),
   activeSceneId: CODING_SCENE_ID,
@@ -147,6 +158,22 @@ export const useSettingsStore = create<SettingsStore>()(
       ...defaultSettings,
       updateSetting: (key, value) => {
         set({ [key]: value })
+      },
+      setFetchedModels: (baseURL, models) => {
+        set((state) => ({
+          fetchedModels: { ...state.fetchedModels, [getProviderKey(baseURL)]: models }
+        }))
+      },
+      setReasoningEffort: (effort) => {
+        set((state) => {
+          if (!state.model) return state
+          const key = getModelSettingsKey(state.apiBaseURL, state.model)
+          const reasoningEfforts = { ...state.reasoningEfforts }
+          const normalizedEffort = effort.trim()
+          if (normalizedEffort) reasoningEfforts[key] = normalizedEffort
+          else delete reasoningEfforts[key]
+          return { reasoningEfforts }
+        })
       },
       adjustOpacity: (delta) => {
         const raw = get().opacity + delta

@@ -45,6 +45,7 @@ import {
 import { isMac } from '@/lib/utils/env'
 import { applyWindowOpacity, clearWindowOpacity } from '@/lib/window-opacity'
 import { SelectModel } from './SelectModel'
+import { getProviderKey, getModelSettingsKey } from '../../../shared/model-settings'
 import { CustomShortcuts, ResetDefaultShortcuts } from './CustomShortcuts'
 import {
   Select,
@@ -103,6 +104,10 @@ export default function SettingsPage() {
     apiBaseURL,
     apiKey,
     model,
+    fetchedModels,
+    reasoningEfforts,
+    setFetchedModels,
+    setReasoningEffort,
     scenes,
     activeSceneId,
     screenshotAutoSave,
@@ -118,6 +123,8 @@ export default function SettingsPage() {
     removeScene
   } = useSettingsStore()
   const [showApiKey, setShowApiKey] = useState(false)
+  const [refreshingModels, setRefreshingModels] = useState(false)
+  const [modelRefreshMessage, setModelRefreshMessage] = useState('')
   const [showDashscopeApiKey, setShowDashscopeApiKey] = useState(false)
   const [addSceneOpen, setAddSceneOpen] = useState(false)
   const [newSceneName, setNewSceneName] = useState('')
@@ -130,11 +137,45 @@ export default function SettingsPage() {
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([])
 
   const activeScene = scenes.find((s) => s.id === activeSceneId)
+  const providerKey = getProviderKey(apiBaseURL)
+  const modelSettingsKey = model ? getModelSettingsKey(apiBaseURL, model) : ''
+  const reasoningEffort = modelSettingsKey ? (reasoningEfforts[modelSettingsKey] ?? '') : ''
+
+  const refreshModels = async () => {
+    setRefreshingModels(true)
+    setModelRefreshMessage('')
+    const requestedBaseURL = apiBaseURL
+    const requestedApiKey = apiKey
+    try {
+      const result = await window.api.fetchAvailableModels(requestedBaseURL, requestedApiKey)
+      if (
+        useSettingsStore.getState().apiBaseURL !== requestedBaseURL ||
+        useSettingsStore.getState().apiKey !== requestedApiKey
+      )
+        return
+      if (result.models) {
+        setFetchedModels(requestedBaseURL, result.models)
+        setModelRefreshMessage(`已获取 ${result.models.length} 个模型`)
+      } else setModelRefreshMessage(result.error)
+    } catch {
+      if (
+        useSettingsStore.getState().apiBaseURL === requestedBaseURL &&
+        useSettingsStore.getState().apiKey === requestedApiKey
+      )
+        setModelRefreshMessage('获取模型失败，请检查网络连接')
+    } finally {
+      setRefreshingModels(false)
+    }
+  }
   const deletingScene = scenes.find((s) => s.id === sceneToDelete)
 
   useEffect(() => {
     setAnswerTextColorDraft(answerTextColor.toUpperCase())
   }, [answerTextColor])
+
+  useEffect(() => {
+    setModelRefreshMessage('')
+  }, [apiBaseURL, apiKey])
 
   useEffect(() => {
     return clearWindowOpacity
@@ -248,10 +289,41 @@ export default function SettingsPage() {
               <label className="text-sm font-medium">
                 Model
                 <span className="ml-2 text-xs font-light">
-                  这里列了几个流行的国内和国外模型，请自行确认你的平台是否支持
+                  可刷新当前平台的模型列表；请确认所选模型支持图片输入
                 </span>
               </label>
-              <SelectModel value={model} onChange={(val) => updateSetting('model', val)} />
+              <div className="flex flex-col items-end gap-2">
+                <SelectModel
+                  value={model}
+                  onChange={(val) => updateSetting('model', val)}
+                  fetchedModels={fetchedModels[providerKey] ?? []}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!apiKey.trim() || refreshingModels}
+                  onClick={refreshModels}
+                >
+                  <RefreshCw className={cn('mr-2 h-4 w-4', refreshingModels && 'animate-spin')} />
+                  {refreshingModels ? '获取中...' : '刷新模型'}
+                </Button>
+                {modelRefreshMessage && <span className="text-xs">{modelRefreshMessage}</span>}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">
+                思考强度
+                <span className="ml-2 text-xs font-light">按模型保存；留空则由服务商决定</span>
+              </label>
+              <Input
+                className="w-60"
+                value={reasoningEffort}
+                onChange={(event) => setReasoningEffort(event.target.value)}
+                placeholder="如 low、medium、high、xhigh"
+                aria-label="思考强度"
+                disabled={!model}
+              />
             </div>
           </div>
         </div>
