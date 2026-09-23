@@ -1,6 +1,7 @@
 import { streamText, type ModelMessage } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
 import { settings, AppSettings } from './settings'
+import { getApiBaseURL, getModelSettingsKey } from '../shared/model-settings'
 
 // The system prompt is fully managed by the renderer (prompt scenes in the
 // settings store) and synced here via updateAppSettings on app startup
@@ -15,14 +16,34 @@ function getModel(_settings: AppSettings) {
   return _settings.model || fallbackModel
 }
 
-export function getSolutionStream(messages: ModelMessage[], abortSignal?: AbortSignal) {
-  const openai = createOpenAI({
-    baseURL: settings.apiBaseURL,
-    apiKey: settings.apiKey
-  })
+function getStreamOptions() {
+  const model = getModel(settings)
+  const reasoningEffort = settings.reasoningEfforts[getModelSettingsKey(settings.apiBaseURL, model)]
+  return {
+    model: createOpenAI({
+      baseURL: getApiBaseURL(settings.apiBaseURL),
+      apiKey: settings.apiKey,
+      ...(reasoningEffort
+        ? {
+            fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+              if (typeof init?.body !== 'string') {
+                throw new Error('无法设置思考强度：请求格式不支持')
+              }
+              const body = JSON.parse(init.body) as Record<string, unknown>
+              return fetch(input, {
+                ...init,
+                body: JSON.stringify({ ...body, reasoning_effort: reasoningEffort })
+              })
+            }
+          }
+        : {})
+    }).chat(model)
+  }
+}
 
+export function getSolutionStream(messages: ModelMessage[], abortSignal?: AbortSignal) {
   const { textStream } = streamText({
-    model: openai.chat(getModel(settings)),
+    ...getStreamOptions(),
     system: getSystemPrompt(),
     messages,
     abortSignal,
@@ -38,11 +59,6 @@ export function getFollowUpStream(
   userQuestion: string,
   abortSignal?: AbortSignal
 ) {
-  const openai = createOpenAI({
-    baseURL: settings.apiBaseURL,
-    apiKey: settings.apiKey
-  })
-
   // Add the user's follow-up question to the conversation
   const updatedMessages: ModelMessage[] = [
     ...messages,
@@ -58,7 +74,7 @@ export function getFollowUpStream(
   ]
 
   const { textStream } = streamText({
-    model: openai.chat(getModel(settings)),
+    ...getStreamOptions(),
     system: getSystemPrompt(),
     messages: updatedMessages,
     abortSignal,
@@ -70,13 +86,8 @@ export function getFollowUpStream(
 }
 
 export function getGeneralStream(messages: ModelMessage[], abortSignal?: AbortSignal) {
-  const openai = createOpenAI({
-    baseURL: settings.apiBaseURL,
-    apiKey: settings.apiKey
-  })
-
   const { textStream } = streamText({
-    model: openai.chat(getModel(settings)),
+    ...getStreamOptions(),
     system: getSystemPrompt(
       '注意：如果有多张截图，请结合所有截图内容进行完整分析，不要遗漏任何部分。'
     ),

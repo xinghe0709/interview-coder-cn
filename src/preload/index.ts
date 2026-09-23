@@ -13,6 +13,10 @@ const api = {
   // Update app settings
   updateAppSettings: (settings: Partial<AppSettings>) =>
     ipcRenderer.invoke('updateAppSettings', settings),
+  fetchAvailableModels: (baseURL: string, apiKey: string) =>
+    ipcRenderer.invoke('fetchAvailableModels', baseURL, apiKey) as Promise<
+      { models: string[]; error?: never } | { models?: never; error: string }
+    >,
   // Verify the platform and runtime window-protection configuration
   runStealthCompatibilityCheck: () =>
     ipcRenderer.invoke('run-stealth-compatibility-check') as Promise<StealthCompatibilityReport>,

@@ -30,12 +30,14 @@ export function SelectModel({
   value,
   onChange,
   disabled,
-  className
+  className,
+  fetchedModels = []
 }: {
   value?: string
   onChange?: (value: string) => void
   disabled?: boolean
   className?: string
+  fetchedModels?: string[]
 }) {
   const [open, setOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
@@ -43,9 +45,16 @@ export function SelectModel({
 
   const models = useMemo(() => {
     const customItems = customModels.map((m) => ({ value: m, label: m, isCustom: true }))
-    const defaultItems = defaultModels.map((m) => ({ ...m, isCustom: false }))
-    return [...customItems, ...defaultItems]
-  }, [customModels])
+    const fetchedItems = fetchedModels.map((m) => ({ value: m, label: m, isCustom: false }))
+    const defaultItems = fetchedModels.length
+      ? []
+      : defaultModels.map((m) => ({ ...m, isCustom: false }))
+    return [
+      ...new Map(
+        [...defaultItems, ...fetchedItems, ...customItems].map((m) => [m.value, m])
+      ).values()
+    ]
+  }, [customModels, fetchedModels])
 
   const addCustomModel = (newModel: string) => {
     const newValue = newModel.trim()
