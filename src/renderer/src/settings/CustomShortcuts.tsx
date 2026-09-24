@@ -118,6 +118,11 @@ export function CustomShortcuts() {
             description="按顺序切换预设和自定义场景，下一次请求立即使用新的 Prompt"
             shortcut="cyclePromptScene"
           />
+          <Shortcut
+            label="切换模型"
+            description="使用当前 API 地址和 Key 已刷新的模型列表切换，不发起网络请求；请先在 AI 设置中刷新模型"
+            shortcut="cycleModel"
+          />
         </div>
 
         {/* Navigation */}

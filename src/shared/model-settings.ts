@@ -30,6 +30,10 @@ export function getProviderKey(baseURL: string): string {
   }
 }
 
+export function getAvailableModelsKey(baseURL: string, apiKey: string): string {
+  return JSON.stringify([getProviderKey(baseURL), apiKey.trim()])
+}
+
 export function getModelSettingsKey(baseURL: string, model: string): string {
   return JSON.stringify([getProviderKey(baseURL), model])
 }

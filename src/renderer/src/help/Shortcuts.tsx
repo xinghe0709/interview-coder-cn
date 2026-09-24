@@ -66,6 +66,7 @@ const getShortcutDescription = (action: string) => {
     toggleTranscription: '开始/暂停实时语音转录',
     clearTranscription: '清除转录文本（不提交给AI）',
     cyclePromptScene: '切换到下一个 Prompt 场景',
+    cycleModel: '切换到下一个模型（需先在设置中刷新当前地址和 Key 的模型列表）',
     pageUp: '向上翻页',
     pageDown: '向下翻页',
     moveMainWindowUp: '向上移动窗口',

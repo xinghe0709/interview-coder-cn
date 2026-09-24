@@ -2,6 +2,15 @@ import { getApiBaseURL } from '../shared/model-settings'
 
 export class ModelFetchError extends Error {}
 
+export function getModelFetchErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.name === 'TimeoutError') {
+    return '获取模型超时，请检查网络连接'
+  }
+  return error instanceof ModelFetchError
+    ? error.message
+    : '获取模型失败，请检查网络连接及 API 地址'
+}
+
 export async function fetchAvailableModels(baseURL: string, apiKey: string): Promise<string[]> {
   if (!apiKey.trim()) throw new ModelFetchError('请先填写 API Key')
 

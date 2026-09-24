@@ -45,7 +45,7 @@ import {
 import { isMac } from '@/lib/utils/env'
 import { applyWindowOpacity, clearWindowOpacity } from '@/lib/window-opacity'
 import { SelectModel } from './SelectModel'
-import { getProviderKey, getModelSettingsKey } from '../../../shared/model-settings'
+import { getAvailableModelsKey, getModelSettingsKey } from '../../../shared/model-settings'
 import { CustomShortcuts, ResetDefaultShortcuts } from './CustomShortcuts'
 import {
   Select,
@@ -138,7 +138,7 @@ export default function SettingsPage() {
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([])
 
   const activeScene = scenes.find((s) => s.id === activeSceneId)
-  const providerKey = getProviderKey(apiBaseURL)
+  const availableModelsKey = getAvailableModelsKey(apiBaseURL, apiKey)
   const modelSettingsKey = model ? getModelSettingsKey(apiBaseURL, model) : ''
   const reasoningEffort = modelSettingsKey ? (reasoningEfforts[modelSettingsKey] ?? '') : ''
 
@@ -155,7 +155,7 @@ export default function SettingsPage() {
       )
         return
       if (result.models) {
-        setFetchedModels(requestedBaseURL, result.models)
+        setFetchedModels(requestedBaseURL, requestedApiKey, result.models)
         setModelRefreshMessage(`已获取 ${result.models.length} 个模型`)
       } else setModelRefreshMessage(result.error)
     } catch {
@@ -297,7 +297,7 @@ export default function SettingsPage() {
                 <SelectModel
                   value={model}
                   onChange={(val) => updateSetting('model', val)}
-                  fetchedModels={fetchedModels[providerKey] ?? []}
+                  fetchedModels={fetchedModels[availableModelsKey] ?? []}
                 />
                 <Button
                   variant="outline"

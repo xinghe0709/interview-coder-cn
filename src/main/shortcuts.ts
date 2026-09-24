@@ -13,6 +13,7 @@ import { saveScreenshotToDisk } from './save-screenshot'
 import { getSolutionStream, getFollowUpStream, getGeneralStream } from './ai'
 import { state } from './state'
 import { settings } from './settings'
+import { getAvailableModelsKey } from '../shared/model-settings'
 import { getTranscriptionText, clearTranscriptionText } from './transcription'
 
 /**
@@ -336,6 +337,28 @@ const callbacks: Record<string, () => void> = {
     mainWindow.webContents.send('cycle-prompt-scene')
   },
 
+  cycleModel: () => {
+    const mainWindow = global.mainWindow
+    if (!mainWindow || mainWindow.isDestroyed()) return
+
+    const { apiBaseURL, apiKey } = settings
+    const models = settings.fetchedModels[getAvailableModelsKey(apiBaseURL, apiKey)]
+    if (!models?.length) {
+      mainWindow.webContents.send(
+        'model-cycle-error',
+        '请先到设置中刷新当前 API 地址和 Key 的模型列表',
+        apiBaseURL,
+        apiKey
+      )
+      return
+    }
+
+    const currentIndex = models.indexOf(settings.model)
+    const nextModel = models[(currentIndex + 1) % models.length]
+    settings.model = nextModel
+    mainWindow.webContents.send('model-cycled', nextModel, apiBaseURL, apiKey)
+  },
+
   takeScreenshot: async () => {
     const mainWindow = global.mainWindow
     if (!mainWindow || mainWindow.isDestroyed() || !state.inCoderPage || !settings.apiKey) return
@@ -385,6 +408,7 @@ const callbacks: Record<string, () => void> = {
       let streamStarted = false
       let assistantResponse = ''
       try {
+        if (streamContext.controller.signal.aborted) return
         const solutionStream = getSolutionStream(
           conversationMessages,
           streamContext.controller.signal
@@ -511,6 +535,7 @@ const callbacks: Record<string, () => void> = {
       let streamStarted = false
       let assistantResponse = ''
       try {
+        if (streamContext.controller.signal.aborted) return
         const solutionStream = getGeneralStream(
           conversationMessages,
           streamContext.controller.signal
@@ -789,6 +814,7 @@ ipcMain.handle('sendFollowUpQuestion', async (_event, question: string) => {
   let assistantResponse = ''
 
   try {
+    if (streamContext.controller.signal.aborted) return { success: false, error: 'Aborted' }
     const followUpStream = getFollowUpStream(
       conversationMessages,
       question,
