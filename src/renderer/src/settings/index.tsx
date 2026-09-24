@@ -97,6 +97,7 @@ export default function SettingsPage() {
     opacity,
     answerTextColor,
     resizable,
+    showModelName,
     showOverlayToolbar,
     toolbarHoverDelay,
     showScreenshotPreview,
@@ -673,6 +674,20 @@ export default function SettingsPage() {
                 className="scale-y-90"
                 checked={resizable}
                 onCheckedChange={(checked) => updateSetting('resizable', checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">
+                显示模型名称
+                <span className="ml-2 text-xs font-light">
+                  在主页面底部信息栏居中显示当前选择的模型
+                </span>
+              </label>
+              <Switch
+                className="scale-y-90"
+                checked={showModelName}
+                onCheckedChange={(checked) => updateSetting('showModelName', checked)}
               />
             </div>
 

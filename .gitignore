@@ -5,6 +5,7 @@ dist
 .eslintcache
 *.log*
 .env*
+.dev-server.pid
 
 # Independent local project; never include it in this repository.
 /gaze-correction-cam/

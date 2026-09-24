@@ -89,6 +89,8 @@ interface Settings {
   answerTextColor: string
   /** Allow resizing the main window and overlay toolbar */
   resizable: boolean
+  /** Show the selected model name in the main page status bar */
+  showModelName: boolean
   /** Show the click-through overlay toolbar above the main window */
   showOverlayToolbar: boolean
   /** Dwell time in ms before hovering a toolbar button fires it; 0 disables hover triggering */
@@ -136,6 +138,7 @@ const defaultSettings: Settings = {
   opacity: 0.8,
   answerTextColor: '#f3f4f6',
   resizable: true,
+  showModelName: true,
   showOverlayToolbar: true,
   toolbarHoverDelay: 1000,
   showScreenshotPreview: true,
