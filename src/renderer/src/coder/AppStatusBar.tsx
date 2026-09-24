@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { Pointer, PointerOff, OctagonX, MessageCircle } from 'lucide-react'
 import { useSolutionStore } from '@/lib/store/solution'
 import { useShortcutsStore } from '@/lib/store/shortcuts'
 import { useAppStore } from '@/lib/store/app'
+import { useSettingsStore } from '@/lib/store/settings'
 import ShortcutRenderer from '@/components/ShortcutRenderer'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogTitle, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -17,6 +18,12 @@ export function AppStatusBar() {
   } = useSolutionStore()
   const { ignoreMouse } = useAppStore()
   const { shortcuts } = useShortcutsStore()
+  const model = useSettingsStore((state) => state.model)
+  const showModelName = useSettingsStore((state) => state.showModelName)
+  const statusBarRef = useRef<HTMLDivElement>(null)
+  const leftContentRef = useRef<HTMLDivElement>(null)
+  const rightContentRef = useRef<HTMLDivElement>(null)
+  const [modelNameMaxWidth, setModelNameMaxWidth] = useState(0)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [questionInput, setQuestionInput] = useState('')
 
@@ -53,9 +60,38 @@ export function AppStatusBar() {
   // Check if there's an active conversation
   const hasActiveConversation = screenshotData && solutionChunks.length > 0
 
+  useLayoutEffect(() => {
+    const statusBar = statusBarRef.current
+    const leftContent = leftContentRef.current
+    const rightContent = rightContentRef.current
+    if (!statusBar || !leftContent || !rightContent) return
+
+    const updateModelNameWidth = () => {
+      const statusBarRect = statusBar.getBoundingClientRect()
+      const leftContentRect = leftContent.getBoundingClientRect()
+      const rightContentRect = rightContent.getBoundingClientRect()
+      const center = statusBarRect.left + statusBarRect.width / 2
+      const horizontalGap = 8
+      const halfWidth = Math.min(center - leftContentRect.right, rightContentRect.left - center)
+
+      setModelNameMaxWidth(Math.max(0, Math.floor((halfWidth - horizontalGap) * 2)))
+    }
+
+    updateModelNameWidth()
+    const resizeObserver = new ResizeObserver(updateModelNameWidth)
+    resizeObserver.observe(statusBar)
+    resizeObserver.observe(leftContent)
+    resizeObserver.observe(rightContent)
+
+    return () => resizeObserver.disconnect()
+  }, [])
+
   return (
-    <div className="absolute bottom-0 flex items-center justify-between w-full text-blue-100 bg-gray-600/10 px-4 pb-1">
-      <div>
+    <div
+      ref={statusBarRef}
+      className="absolute bottom-0 flex items-center justify-between w-full text-blue-100 bg-gray-600/10 px-4 pb-1"
+    >
+      <div ref={leftContentRef}>
         {isReceivingSolution ? (
           <div className="flex items-center space-x-2">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-r-2 border-[currentColor]"></div>
@@ -94,7 +130,15 @@ export function AppStatusBar() {
           </div>
         ) : null}
       </div>
-      <div className="flex items-center space-x-4 select-none">
+      {showModelName && model && modelNameMaxWidth > 0 && (
+        <div
+          className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 truncate text-xs select-none"
+          style={{ maxWidth: modelNameMaxWidth }}
+        >
+          {model}
+        </div>
+      )}
+      <div ref={rightContentRef} className="flex items-center space-x-4 select-none">
         {/* Follow-up Question Button */}
         {hasActiveConversation && !isReceivingSolution && (
           <Button

@@ -65,6 +65,28 @@ export default function App() {
     return () => window.api.removeCyclePromptSceneListener()
   }, [])
 
+  useEffect(() => {
+    window.api.onModelCycled((model, apiBaseURL, apiKey) => {
+      const currentSettings = useSettingsStore.getState()
+      if (currentSettings.apiBaseURL !== apiBaseURL || currentSettings.apiKey !== apiKey) {
+        void window.api.updateAppSettings(getCloneableFields(currentSettings))
+        return
+      }
+      currentSettings.updateSetting('model', model)
+    })
+    window.api.onModelCycleError((message, apiBaseURL, apiKey) => {
+      const currentSettings = useSettingsStore.getState()
+      if (currentSettings.apiBaseURL === apiBaseURL && currentSettings.apiKey === apiKey) {
+        toast.error(message)
+      }
+    })
+
+    return () => {
+      window.api.removeModelCycledListener()
+      window.api.removeModelCycleErrorListener()
+    }
+  }, [])
+
   return (
     <>
       <HashRouter>

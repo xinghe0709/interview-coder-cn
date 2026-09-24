@@ -1,6 +1,6 @@
 import { app, dialog, ipcMain } from 'electron'
 import { setToolbarOpacity, syncToolbarSettings } from './toolbar-window'
-import { fetchAvailableModels, ModelFetchError } from './models'
+import { fetchAvailableModels, getModelFetchErrorMessage } from './models'
 import type { ReasoningEffort } from '../shared/model-settings'
 
 ipcMain.handle('getAppVersion', () => {
@@ -28,13 +28,7 @@ ipcMain.handle('fetchAvailableModels', async (_event, baseURL: string, apiKey: s
   try {
     return { models: await fetchAvailableModels(baseURL, apiKey) }
   } catch (error) {
-    if (error instanceof Error && error.name === 'TimeoutError') {
-      return { error: '获取模型超时，请检查网络连接' }
-    }
-    return {
-      error:
-        error instanceof ModelFetchError ? error.message : '获取模型失败，请检查网络连接及 API 地址'
-    }
+    return { error: getModelFetchErrorMessage(error) }
   }
 })
 
@@ -63,6 +57,7 @@ export const settings = {
   apiBaseURL: process.env.API_BASE_URL || '',
   apiKey: process.env.API_KEY || '',
   model: process.env.MODEL || '',
+  fetchedModels: {} as Record<string, string[]>,
   reasoningEfforts: {} as Record<string, ReasoningEffort>,
   customPrompt: '',
   /** Kept in sync with the renderer so the overlay toolbar can match the main window */

@@ -105,6 +105,22 @@ const api = {
   removeCyclePromptSceneListener: () => {
     ipcRenderer.removeAllListeners('cycle-prompt-scene')
   },
+  onModelCycled: (callback: (model: string, apiBaseURL: string, apiKey: string) => void) => {
+    ipcRenderer.on('model-cycled', (_event, model, apiBaseURL, apiKey) => {
+      callback(model, apiBaseURL, apiKey)
+    })
+  },
+  removeModelCycledListener: () => {
+    ipcRenderer.removeAllListeners('model-cycled')
+  },
+  onModelCycleError: (callback: (message: string, apiBaseURL: string, apiKey: string) => void) => {
+    ipcRenderer.on('model-cycle-error', (_event, message, apiBaseURL, apiKey) => {
+      callback(message, apiBaseURL, apiKey)
+    })
+  },
+  removeModelCycleErrorListener: () => {
+    ipcRenderer.removeAllListeners('model-cycle-error')
+  },
 
   // Listen for screenshot events
   onScreenshotTaken: (callback: (screenshotData: string) => void) => {

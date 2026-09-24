@@ -5,8 +5,8 @@ import englishExamPrompt from './prompts/english-exam.md?raw'
 import aptitudeTestPrompt from './prompts/aptitude-test.md?raw'
 import generalQaPrompt from './prompts/general-qa.md?raw'
 import {
+  getAvailableModelsKey,
   getModelSettingsKey,
-  getProviderKey,
   type ReasoningEffort
 } from '../../../../shared/model-settings'
 
@@ -89,6 +89,8 @@ interface Settings {
   answerTextColor: string
   /** Allow resizing the main window and overlay toolbar */
   resizable: boolean
+  /** Show the selected model name in the main page status bar */
+  showModelName: boolean
   /** Show the click-through overlay toolbar above the main window */
   showOverlayToolbar: boolean
   /** Dwell time in ms before hovering a toolbar button fires it; 0 disables hover triggering */
@@ -111,7 +113,7 @@ interface Settings {
 
 interface SettingsStore extends Settings {
   updateSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void
-  setFetchedModels: (baseURL: string, models: string[]) => void
+  setFetchedModels: (baseURL: string, apiKey: string, models: string[]) => void
   setReasoningEffort: (effort: ReasoningEffort | '') => void
   /** Step the window background opacity within [OPACITY_MIN, OPACITY_MAX] */
   adjustOpacity: (delta: number) => void
@@ -136,6 +138,7 @@ const defaultSettings: Settings = {
   opacity: 0.8,
   answerTextColor: '#f3f4f6',
   resizable: true,
+  showModelName: true,
   showOverlayToolbar: true,
   toolbarHoverDelay: 1000,
   showScreenshotPreview: true,
@@ -159,9 +162,12 @@ export const useSettingsStore = create<SettingsStore>()(
       updateSetting: (key, value) => {
         set({ [key]: value })
       },
-      setFetchedModels: (baseURL, models) => {
+      setFetchedModels: (baseURL, apiKey, models) => {
         set((state) => ({
-          fetchedModels: { ...state.fetchedModels, [getProviderKey(baseURL)]: models }
+          fetchedModels: {
+            ...state.fetchedModels,
+            [getAvailableModelsKey(baseURL, apiKey)]: models
+          }
         }))
       },
       setReasoningEffort: (effort) => {
@@ -227,11 +233,12 @@ export const useSettingsStore = create<SettingsStore>()(
     }),
     {
       name: 'interview-coder-settings',
-      version: 9,
+      version: 10,
       migrate: (persisted, version) => {
         const state = persisted as Partial<Settings>
         // Drop the legacy codeLanguage field (language now lives in the prompt text)
         delete (state as Record<string, unknown>).codeLanguage
+        if (version < 10) state.fetchedModels = {}
         if (version < 9) {
           const legacyScreenshotDisplay = (state as { screenshotDisplay?: string })
             .screenshotDisplay
